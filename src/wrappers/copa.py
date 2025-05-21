@@ -31,7 +31,7 @@ def main(delta_conf):
 
     if args.option == 'sender':
         sh_cmd = (
-            'export MIN_RTT=1000000 && %s serverip=%s serverport=%s '
+            '%s serverip=%s serverport=%s '
             'offduration=1 onduration=1000000 traffic_params=deterministic,'
             'num_cycles=1 cctype=markovian delta_conf=%s'
             % (send_src, args.ip, args.port, delta_conf))
@@ -43,4 +43,4 @@ def main(delta_conf):
 
 
 if __name__ == '__main__':
-    main('do_ss:auto:0.1')
+    main('do_ss:constant_delta:0.125')
