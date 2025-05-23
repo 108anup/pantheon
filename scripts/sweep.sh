@@ -38,13 +38,14 @@
     eval $cmd
   }
 
-  SCHEMES="--all"
   RUNTIME=60
-  INTERVAL=2
-  # SCHEMES="--schemes=\"copa indigo\""
+  INTERVAL=0
+  SCHEMES="--all"
+  # SCHEMES="--schemes=\"bbr fillp fillp_sheep indigo vegas\""
+  SCHEMES="--schemes=\"bbr\""
   bw_ppms=8
   ow_delay_ms=5
-  buf_size_bdp=1
+  buf_size_bdp=4
   n_flows=1
 
   # for bw_ppms in $(seq 1 8); do

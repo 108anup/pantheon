@@ -4,7 +4,7 @@ import json
 import os
 import subprocess
 from collections import defaultdict
-from typing import Callable
+from typing import Callable, NamedTuple, Optional
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -15,6 +15,14 @@ import scipy.optimize
 # from plot_config_light import colors, get_fig_size_paper, get_fig_size_ppt, get_style
 # get_fig_size = get_fig_size_paper
 # style = get_style(use_markers=False, paper=True, use_tex=True)
+
+style = {
+    "pgf.texsystem": "pdflatex",
+    "text.usetex": True,
+    "pgf.preamble": "\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage{usenix}",
+    "text.latex.preamble": "\\usepackage[cm]{sfmath}\n\\usepackage{amsmath}\n\\usepackage[scale=0.8]{cascadia-code}",
+}
+
 
 FILE_PATH = os.path.abspath(os.path.realpath(__file__))  # PROJECT_ROOT/scripts/script.py
 SCRIPTS_ROOT = os.path.dirname(FILE_PATH)  # PROJECT_ROOT/scripts/
@@ -34,56 +42,87 @@ def func_exp(x, a, b):
     return np.power(np.e, b) * np.power(x, -a)
 
 
-def is_loss_based(cca):
-    return cca in ["reno", "cubic", "fillp", "fillp_sheep"]
+class Statistic(NamedTuple):
+    name: str
+    short_label: str
+    xlabel: str
 
 
-style = {
-    "pgf.texsystem": "pdflatex",
-    "text.usetex": True,
-    "pgf.preamble": "\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage{usenix}",
-    "text.latex.preamble": "\\usepackage[cm]{sfmath}\n\\usepackage{amsmath}\n\\usepackage[scale=0.8]{cascadia-code}",
+STATISTICS = {
+    "loss": Statistic("loss", "loss rate", "Loss rate"),
+
+    # "max_owd": Statistic("max_owd", "max delay", "Max delay (ms)"),
+    "p50_owd": Statistic("p50_owd", "p50 delay", "p50 delay (ms)"),
+    # "p90_owd": Statistic("p90_owd", "p90 delay", "p90 delay (ms)"),
+    # "p95_owd": Statistic("p95_owd", "p95 delay", "p95 delay (ms)"),
+    "avg_owd": Statistic("avg_owd", "avg delay", "Avg delay (ms)"),
+
+    # "end_max_owd": Statistic("end_max_owd", "max delay", "Max delay (ms)"),
+    # "end_p50_owd": Statistic("end_p50_owd", "p50 delay", "p50 delay (ms)"),
+    # "end_p90_owd": Statistic("end_p90_owd", "p90 delay", "p90 delay (ms)"),
+    # "end_p95_owd": Statistic("end_p95_owd", "p95 delay", "p95 delay (ms)"),
+    # "end_avg_owd": Statistic("end_avg_owd", "avg delay", "Avg delay (ms)"),
+
 }
-@mpl.rc_context(rc=style)
-def compute_and_plot_contract(df, outdir):
+
+CCA_STATISTIC = {
+    "cubic": "loss",
+}
+
+
+def get_statistic_name(cca):
+    if cca in CCA_STATISTIC:
+        return CCA_STATISTIC[cca]
+    return "delay"
+
+
+class Contract(NamedTuple):
+    label: str
+    params: tuple
+    func: Callable
+
+
+def compute_contract(df: pd.DataFrame, statistic: Statistic):
     cca = df["cca"].iloc[0]
     tput = df["tput"]
-    delay = df["delay"]
-    loss = df["loss"]
-
-    # TODO: get rtprop in a better way
-    rtprop = 6
-    # delay = delay - rtprop
-
-    loss_based = False
-    short_lbl = "owd"
-    if is_loss_based(cca):
-        rtprop = 0
-        delay = loss
-        loss_based = True
-        short_lbl = "loss rate"
+    sdata = df[statistic.name]
+    short_lbl = statistic.short_label
+    if "owd" in statistic.name:
+        sdata = sdata - df["min_owd"]
 
     tput = np.array(tput)
-    delay = np.array(delay)
-    loss = np.array(loss)
+    sdata = np.array(sdata)
 
     log_tput = np.log(tput)
-    log_delay = np.log(delay)
+    log_sdata = np.log(sdata)
 
-    print("Computing contract for ", cca)
-    ret = scipy.optimize.curve_fit(func_log, log_delay, log_tput)
+    print("Computing contract for", cca, "with statistic", statistic.name)
+    ret = scipy.optimize.curve_fit(func_log, log_sdata, log_tput)
     print(ret)
     opta, optb = ret[0]
+    label = f"Fit $\\left(\\texttt{{rate}} \\propto \\frac{{1}}{{(\\texttt{{{short_lbl}}})^{{{opta:.6f}}}}}\\right)$"
+    contract = Contract(label, ret[0], func_exp)
 
-    fit = False
     try:
-        p0=[100, rtprop, 1, 0]
-        ret = scipy.optimize.curve_fit(func_fit, delay, tput, p0=p0, maxfev=10000)
+        p0=[100, 0, 1, 0]
+        ret = scipy.optimize.curve_fit(func_fit, sdata, tput, p0=p0, maxfev=10000)
         print(ret)
         optc, optd, opte, optf = ret[0]
-        fit = True
+        label = f"Fit $\\left(\\texttt{{rate}} \\propto \\frac{{1}}{{(\\texttt{{{short_lbl}}} - {optd:.2f})^{{{opte:.6f}}}}}\\right)$"
+        contract = Contract(label, ret[0], func_fit)
     except RuntimeError:
         pass
+
+    return contract
+
+
+@mpl.rc_context(rc=style)
+def plot_contract(df: pd.DataFrame, outdir: str, statistic: Statistic, contract: Optional[Contract] = None):
+    cca = df["cca"].iloc[0]
+    tput = df["tput"]
+    sdata = df[statistic.name]
+    if "owd" in statistic.name:
+        sdata = sdata - df["min_owd"]
 
     # figsize = get_fig_size_paper(0.49, 0.49)
     # figsize = (2.54, 1.49)
@@ -91,31 +130,27 @@ def compute_and_plot_contract(df, outdir):
     fig, ax = plt.subplots()
 
     ax.scatter(
-        delay,
+        sdata,
         tput,
         marker='X',
         label="Data",
         # color=colors[2]
     )
 
-    x = np.linspace(min(delay), max(delay), 1000)
+    if contract:
+        x = np.linspace(min(sdata), max(sdata), 1000)
+        y = contract.func(x, *contract.params)
+        ax.plot(x, y, ls='dashed', label=contract.label)
 
-    y = func_exp(x, opta, optb)
-    label = f"Fit $\\left(\\texttt{{rate}} \\propto \\frac{{1}}{{(\\texttt{{{short_lbl}}})^{{{opta:.6f}}}}}\\right)$"
-    if fit:
-        y = func_fit(x, optc, optd, opte, optf)
-        label = f"Fit $\\left(\\texttt{{rate}} \\propto \\frac{{1}}{{(\\texttt{{{short_lbl}}} - {optd:.2f})^{{{opte:.6f}}}}}\\right)$"
-    ax.plot(x, y, ls='dashed', label=label)
-
-    ax.set_xlabel("One way delay (owd) (ms)")
+    ax.set_xlabel(statistic.xlabel)
     ax.set_ylabel("Rate (Mbps)")
-    if loss_based:
-        ax.set_xlabel("Loss rate")
     ax.legend()
     ax.grid()
 
     fig.tight_layout(pad=0.05)
-    fig.savefig(os.path.join(outdir, cca + "-fit.pdf"))
+    thisdir = os.path.join(outdir, cca)
+    os.makedirs(thisdir, exist_ok=True)
+    fig.savefig(os.path.join(thisdir, f"{cca}-{statistic.name}-fit.pdf"))
 
 
 def compute_contract_all(df, outdir):
@@ -123,7 +158,14 @@ def compute_contract_all(df, outdir):
         # if cca == "vegas":
         #     print(cca_df)
         #     import ipdb; ipdb.set_trace()
-        compute_and_plot_contract(cca_df, outdir)
+        # compute_and_plot_contract(cca_df, outdir)
+        for statistic in STATISTICS.values():
+            contract = None
+            try:
+                contract = compute_contract(cca_df, statistic)
+            except ValueError:
+                pass
+            plot_contract(cca_df, outdir, statistic, contract)
 
 
 def try_except(function: Callable):
