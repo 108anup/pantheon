@@ -9,6 +9,11 @@ import matplotlib_agg
 import matplotlib.pyplot as plt
 
 import arg_parser
+from collections import defaultdict
+
+
+END = 10  # seconds
+SKIP_END = 10  # seconds
 
 
 class TunnelGraph(object):
@@ -166,6 +171,43 @@ class TunnelGraph(object):
         self.avg_egress = {}
         self.percentile_delay = {}
         self.loss_rate = {}
+
+        self.min_owd = {}
+        self.max_owd = {}
+        self.p50_owd = {}
+        self.p90_owd = {}
+        self.p95_owd = {}
+        self.avg_owd = {}
+
+        self.end_min_owd = {}
+        self.end_max_owd = {}
+        self.end_p50_owd = {}
+        self.end_p90_owd = {}
+        self.end_p95_owd = {}
+        self.end_avg_owd = {}
+
+        for flow_id in self.flows:
+            this_delays_t = np.array(self.delays_t[flow_id])
+            this_delays = np.array(self.delays[flow_id])
+
+            end_t = np.max(this_delays_t)
+            end_filter = this_delays_t <= end_t - SKIP_END
+            start_filter = this_delays_t >= end_t - SKIP_END - END
+            filtered_delays = this_delays[start_filter & end_filter]
+
+            self.min_owd[flow_id] = np.min(this_delays)
+            self.max_owd[flow_id] = np.max(this_delays)
+            self.p50_owd[flow_id] = np.percentile(this_delays, 50)
+            self.p90_owd[flow_id] = np.percentile(this_delays, 90)
+            self.p95_owd[flow_id] = np.percentile(this_delays, 95)
+            self.avg_owd[flow_id] = np.mean(this_delays)
+
+            self.end_min_owd[flow_id] = np.min(filtered_delays)
+            self.end_max_owd[flow_id] = np.max(filtered_delays)
+            self.end_p50_owd[flow_id] = np.percentile(filtered_delays, 50)
+            self.end_p90_owd[flow_id] = np.percentile(filtered_delays, 90)
+            self.end_p95_owd[flow_id] = np.percentile(filtered_delays, 95)
+            self.end_avg_owd[flow_id] = np.mean(filtered_delays)
 
         total_delays = []
 
@@ -423,6 +465,20 @@ class TunnelGraph(object):
                 flow_data[flow_id]['tput'] = self.avg_egress[flow_id]
                 flow_data[flow_id]['delay'] = self.percentile_delay[flow_id]
                 flow_data[flow_id]['loss'] = self.loss_rate[flow_id]
+
+                flow_data[flow_id]['min_owd'] = self.min_owd[flow_id]
+                flow_data[flow_id]['max_owd'] = self.max_owd[flow_id]
+                flow_data[flow_id]['p50_owd'] = self.p50_owd[flow_id]
+                flow_data[flow_id]['p90_owd'] = self.p90_owd[flow_id]
+                flow_data[flow_id]['p95_owd'] = self.p95_owd[flow_id]
+                flow_data[flow_id]['avg_owd'] = self.avg_owd[flow_id]
+
+                flow_data[flow_id]['end_min_owd'] = self.end_min_owd[flow_id]
+                flow_data[flow_id]['end_max_owd'] = self.end_max_owd[flow_id]
+                flow_data[flow_id]['end_p50_owd'] = self.end_p50_owd[flow_id]
+                flow_data[flow_id]['end_p90_owd'] = self.end_p90_owd[flow_id]
+                flow_data[flow_id]['end_p95_owd'] = self.end_p95_owd[flow_id]
+                flow_data[flow_id]['end_avg_owd'] = self.end_avg_owd[flow_id]
 
         tunnel_results['flow_data'] = flow_data
 

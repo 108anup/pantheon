@@ -215,6 +215,7 @@ def create_df(input_dir, exts=(".log")):
         perf_json = os.path.join(exp_dir, "pantheon_perf.json")
         if not os.path.exists(perf_json):
             continue
+            # Below is done using python2 script instead
             cmd = [ANALYZE_PY, "--data-dir", exp_dir]
             # print(cmd)
             subprocess.check_call(cmd)

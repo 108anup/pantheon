@@ -25,27 +25,31 @@
     this_outdir=$outdir/$tag
 
     cmd="${PANTHEON_PATH}/src/experiments/test.py local \
-      $SCHEMES \
-      --data-dir $this_outdir \
+      ${SCHEMES} \
+      --data-dir ${this_outdir} \
       --prepend-mm-cmds \"mm-delay ${ow_delay_ms}\" \
       --uplink-trace ${MAHIMAHI_TRACES}/${bw_ppms}ppms.trace \
       --downlink-trace ${MAHIMAHI_TRACES}/${bw_ppms}ppms.trace \
       --extra-mm-link-args \"--uplink-queue=droptail --uplink-queue-args=bytes=${buf_size_bytes}\" \
-      --flows ${n_flows}"
+      --flows ${n_flows} \
+      --runtime ${RUNTIME} \
+      --interval ${INTERVAL}"
     echo $cmd
     eval $cmd
   }
 
   SCHEMES="--all"
+  RUNTIME=60
+  INTERVAL=2
   # SCHEMES="--schemes=\"copa indigo\""
   bw_ppms=8
   ow_delay_ms=5
   buf_size_bdp=1
   n_flows=1
 
-  for bw_ppms in $(seq 1 8); do
-    run_experiment
-  done
+  # for bw_ppms in $(seq 1 8); do
+  #   run_experiment
+  # done
 
   bw_ppms=8
   for n_flows in $(seq 2 8); do

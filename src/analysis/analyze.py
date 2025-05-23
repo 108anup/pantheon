@@ -1,10 +1,25 @@
 #!/usr/bin/env python
 
+import multiprocessing
+import os
+from collections import defaultdict
+from multiprocessing.pool import ThreadPool
 from os import path
 
 import arg_parser
 import context
+
 from helpers.subprocess_wrappers import check_call
+
+
+def get_exp_dirs(input_dir, exts=('.log')):
+    exp_dirs = defaultdict(list)
+    for root, _, files in os.walk(input_dir):
+        for filename in files:
+            if filename.endswith(exts):
+                fpath = os.path.join(root, filename)
+                exp_dirs[root].append(fpath)
+    return list(exp_dirs.keys())
 
 
 def main():
@@ -14,19 +29,32 @@ def main():
     plot = path.join(analysis_dir, 'plot.py')
     report = path.join(analysis_dir, 'report.py')
 
-    plot_cmd = ['python', plot]
-    report_cmd = ['python', report]
+    assert os.path.isdir(args.data_dir)
+    exp_dirs = get_exp_dirs(args.data_dir)
+    print("Analyzing: ", exp_dirs)
 
-    for cmd in [plot_cmd, report_cmd]:
-        if args.data_dir:
-            cmd += ['--data-dir', args.data_dir]
-        if args.schemes:
-            cmd += ['--schemes', args.schemes]
-        if args.include_acklink:
-            cmd += ['--include-acklink']
+    # pool = ThreadPool(processes=multiprocessing.cpu_count())
 
-    check_call(plot_cmd)
-    check_call(report_cmd)
+    for exp_dir in exp_dirs:
+
+        plot_cmd = ['python', plot]
+        report_cmd = ['python', report]
+
+        for cmd in [plot_cmd, report_cmd]:
+            if args.data_dir:
+                cmd += ['--data-dir', exp_dir]
+            if args.schemes:
+                cmd += ['--schemes', args.schemes]
+            if args.include_acklink:
+                cmd += ['--include-acklink']
+
+        # pool.apply_async(check_call, args=(plot_cmd))
+        # pool.apply_async(check_call, args=(report_cmd))
+        check_call(plot_cmd)
+        check_call(report_cmd)
+
+    # pool.join()
+    # pool.close()
 
 
 if __name__ == '__main__':
