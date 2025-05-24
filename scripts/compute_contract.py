@@ -82,6 +82,14 @@ class Contract(NamedTuple):
     func: Callable
 
 
+def inv_func_fit(x, c, d, e):
+    return c * np.power(x - d, e)
+
+
+def inv_func(x, c, d, e):
+    return 96/inv_func_fit(x, c, d, e)
+
+
 def compute_contract(df: pd.DataFrame, statistic: Statistic):
     cca = df["cca"].iloc[0]
     tput = df["tput"]
@@ -90,13 +98,13 @@ def compute_contract(df: pd.DataFrame, statistic: Statistic):
     if "owd" in statistic.name:
         sdata = sdata - df["min_owd"]
 
+    print("Computing contract for", cca, "with statistic", statistic.name)
     tput = np.array(tput)
     sdata = np.array(sdata)
 
     log_tput = np.log(tput)
     log_sdata = np.log(sdata)
 
-    print("Computing contract for", cca, "with statistic", statistic.name)
     ret = scipy.optimize.curve_fit(func_log, log_sdata, log_tput)
     print(ret)
     opta, optb = ret[0]
@@ -110,6 +118,16 @@ def compute_contract(df: pd.DataFrame, statistic: Statistic):
         optc, optd, opte, optf = ret[0]
         label = f"Fit $\\left(\\texttt{{rate}} \\propto \\frac{{1}}{{(\\texttt{{{short_lbl}}} - {optd:.2f})^{{{opte:.6f}}}}}\\right)$"
         contract = Contract(label, ret[0], func_fit)
+    except RuntimeError:
+        pass
+
+    try:
+        inv_tput = 96. / tput
+        ret = scipy.optimize.curve_fit(inv_func_fit, sdata, inv_tput, p0=[1, 0, 1], maxfev=10000)
+        print(ret)
+        optc, optd, opte = ret[0]
+        label = f"Fit $\\left(\\texttt{{rate}} \\propto \\frac{{1}}{{(\\texttt{{{short_lbl}}} - {optd:.2f})^{{{opte:.2f}}}}}\\right)$"
+        contract = Contract(label, ret[0], inv_func)
     except RuntimeError:
         pass
 
@@ -163,6 +181,8 @@ def compute_contract_all(df, outdir):
             contract = None
             try:
                 contract = compute_contract(cca_df, statistic)
+            except RuntimeError:
+                pass
             except ValueError:
                 pass
             plot_contract(cca_df, outdir, statistic, contract)
