@@ -33,6 +33,10 @@ def parse_tunnel_graph():
     parser.add_argument(
         '--ms-per-bin', metavar='MS-PER-BIN', type=int, default=500,
         help='bin size in ms (default 500)')
+    parser.add_argument(
+        '--my-throughput', metavar='OUTPUT-GRAPH',
+        action='store', dest='my_throughput_graph',
+        help='throughput graph to save as (default None)')
 
     args = parser.parse_args()
     return args

@@ -18,11 +18,12 @@ SKIP_END = 10  # seconds
 
 class TunnelGraph(object):
     def __init__(self, tunnel_log, throughput_graph=None, delay_graph=None,
-                 ms_per_bin=500):
+                 ms_per_bin=500, my_throughput_graph=None):
         self.tunnel_log = tunnel_log
         self.throughput_graph = throughput_graph
         self.delay_graph = delay_graph
         self.ms_per_bin = ms_per_bin
+        self.my_throughput_graph = my_throughput_graph
 
     def ms_to_bin(self, ts, first_ts):
         return int((ts - first_ts) / self.ms_per_bin)
@@ -297,6 +298,48 @@ class TunnelGraph(object):
     def flip(self, items, ncol):
         return list(itertools.chain(*[items[i::ncol] for i in range(ncol)]))
 
+    def my_plot_throughput_graph(self):
+        empty_graph = True
+        fig, ax = plt.subplots()
+
+        if self.link_capacity:
+            empty_graph = False
+            ax.fill_between(self.link_capacity_t, 0, self.link_capacity,
+                            facecolor='linen', label="Link capacity %.2f Mbps" % self.avg_capacity)
+
+        colors = ['b', 'g', 'r', 'y', 'c', 'm']
+        color_i = 0
+        for flow_id in self.flows:
+            color = colors[color_i]
+
+            if flow_id in self.egress_tput and flow_id in self.egress_t:
+                empty_graph = False
+                ax.plot(self.egress_t[flow_id], self.egress_tput[flow_id],
+                        label='Flow %s (%.2f Mbps)'
+                        % (flow_id, self.avg_egress.get(flow_id, 0)),
+                        color=color)
+
+            color_i += 1
+            if color_i == len(colors):
+                color_i = 0
+
+        if empty_graph:
+            sys.stderr.write('No valid throughput graph is generated\n')
+            return
+
+        ax.set_xlabel('Time (s)')
+        ax.set_ylabel('Throughput (Mbps)')
+
+        ax.grid()
+        ax.legend()
+        # handles, labels = ax.get_legend_handles_labels()
+        # lgd = ax.legend(self.flip(handles, 2), self.flip(labels, 2),
+        #                 scatterpoints=1, bbox_to_anchor=(0.5, -0.1),
+        #                 loc='upper center', ncol=2, fontsize=12)
+
+        fig.tight_layout(pad=0.03)
+        fig.savefig(self.my_throughput_graph)
+
     def plot_throughput_graph(self):
         empty_graph = True
         fig, ax = plt.subplots()
@@ -441,6 +484,9 @@ class TunnelGraph(object):
         if self.throughput_graph:
             self.plot_throughput_graph()
 
+        if self.my_throughput_graph:
+            self.my_plot_throughput_graph()
+
         if self.delay_graph:
             self.plot_delay_graph()
 
@@ -492,7 +538,8 @@ def main():
         tunnel_log=args.tunnel_log,
         throughput_graph=args.throughput_graph,
         delay_graph=args.delay_graph,
-        ms_per_bin=args.ms_per_bin)
+        ms_per_bin=args.ms_per_bin,
+        my_throughput_graph=args.my_throughput_graph)
     tunnel_results = tunnel_graph.run()
 
     sys.stderr.write(tunnel_results['stats'])
