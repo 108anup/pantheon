@@ -78,8 +78,10 @@ def get_statistic_name(cca):
 
 class Contract(NamedTuple):
     label: str
-    params: tuple
+    params: np.ndarray
     func: Callable
+    shape_var: float
+    param_var: np.ndarray
 
 
 def inv_func_fit(x, c, d, e):
@@ -88,6 +90,18 @@ def inv_func_fit(x, c, d, e):
 
 def inv_func(x, c, d, e):
     return 96/inv_func_fit(x, c, d, e)
+
+
+def contract_general(x, shape, scale, shiftx, shifty):
+    return scale / np.power(x - shiftx, shape) + shifty
+
+
+def contract_no_shift(x, shape, scale):
+    return scale / np.power(x, shape)
+
+
+def contract_no_shifty(x, shape, scale, shiftx):
+    return scale / np.power(x - shiftx, shape)
 
 
 def compute_contract(df: pd.DataFrame, statistic: Statistic):
@@ -101,6 +115,34 @@ def compute_contract(df: pd.DataFrame, statistic: Statistic):
     print("Computing contract for", cca, "with statistic", statistic.name)
     tput = np.array(tput)
     sdata = np.array(sdata)
+
+    fits = []
+    for func in [contract_general, contract_no_shift, contract_no_shifty]:
+        try:
+            ret = scipy.optimize.curve_fit(func, sdata, tput, maxfev=10000)
+            shape = ret[0][0]
+            shiftx = ret[0][2] if len(ret[0]) > 2 else 0
+            shape_var = ret[1][0][0]
+            shape_dev = np.sqrt(shape_var)
+            # label = f"Fit $\\left(\\texttt{{rate}} \\propto \\frac{{1}}{{\\texttt{{{short_lbl}}}^{{{shape:.6f} \\pm {shape_dev:.6f}}}}}\\right)$"
+            label = f"Fit $\\left(\\texttt{{rate}} \\propto \\frac{{1}}{{\\texttt{{{short_lbl}}}^{{{shape:.6f}}}}}\\right)$"
+            if len(ret[0]) > 2:
+                label = f"Fit $\\left(\\texttt{{rate}} \\propto \\frac{{1}}{{(\\texttt{{{short_lbl}}} - {shiftx:.2f})^{{{shape:.6f}}}}}\\right)$"
+                # label = f"Fit $\\left(\\texttt{{rate}} \\propto \\frac{{1}}{{(\\texttt{{{short_lbl}}} - {shiftx:.2f})^{{{shape:.6f} \\pm {shape_dev:.6f}}}}}\\right)$"
+            contract = Contract(label, ret[0], func, shape_var, ret[1])
+            fits.append(contract)
+        except RuntimeError:
+            pass
+        except ValueError:
+            pass
+
+    # Pick fit with the lowest shape variance
+    if len(fits) == 0:
+        print("No fits found for", cca, "with statistic", statistic.name)
+        return None
+    fits.sort(key=lambda x: x.shape_var)
+    contract = fits[0]
+    return contract
 
     log_tput = np.log(tput)
     log_sdata = np.log(sdata)
@@ -178,13 +220,7 @@ def compute_contract_all(df, outdir):
         #     import ipdb; ipdb.set_trace()
         # compute_and_plot_contract(cca_df, outdir)
         for statistic in STATISTICS.values():
-            contract = None
-            try:
-                contract = compute_contract(cca_df, statistic)
-            except RuntimeError:
-                pass
-            except ValueError:
-                pass
+            contract = compute_contract(cca_df, statistic)
             plot_contract(cca_df, outdir, statistic, contract)
 
 
