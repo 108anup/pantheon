@@ -18,12 +18,13 @@ SKIP_END = 10  # seconds
 
 class TunnelGraph(object):
     def __init__(self, tunnel_log, throughput_graph=None, delay_graph=None,
-                 ms_per_bin=500, my_throughput_graph=None):
+                 ms_per_bin=500, my_throughput_graph=None, name=""):
         self.tunnel_log = tunnel_log
         self.throughput_graph = throughput_graph
         self.delay_graph = delay_graph
         self.ms_per_bin = ms_per_bin
         self.my_throughput_graph = my_throughput_graph
+        self.name = name
 
     def ms_to_bin(self, ts, first_ts):
         return int((ts - first_ts) / self.ms_per_bin)
@@ -307,7 +308,7 @@ class TunnelGraph(object):
         plt.rcParams.update(style)
 
         empty_graph = True
-        figsize = get_fig_size(0.33, 0.33)
+        figsize = get_fig_size(0.32, 0.32)
         fig, ax = plt.subplots(figsize=figsize)
 
         if self.link_capacity:
@@ -335,7 +336,7 @@ class TunnelGraph(object):
             sys.stderr.write('No valid throughput graph is generated\n')
             return
 
-        ax.set_xlabel('Time (s)')
+        ax.set_xlabel('Time (s), %s' % self.name)
         ax.set_ylabel('Tput (Mbps)')
 
         ax.grid(True)
@@ -547,7 +548,8 @@ def main():
         throughput_graph=args.throughput_graph,
         delay_graph=args.delay_graph,
         ms_per_bin=args.ms_per_bin,
-        my_throughput_graph=args.my_throughput_graph)
+        my_throughput_graph=args.my_throughput_graph,
+        name=args.name)
     tunnel_results = tunnel_graph.run()
 
     sys.stderr.write(tunnel_results['stats'])

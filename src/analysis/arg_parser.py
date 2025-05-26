@@ -37,6 +37,10 @@ def parse_tunnel_graph():
         '--my-throughput', metavar='OUTPUT-GRAPH',
         action='store', dest='my_throughput_graph',
         help='throughput graph to save as (default None)')
+    parser.add_argument(
+        '--name',
+        action='store', dest='name',
+        help='Name of the CCA', default="")
 
     args = parser.parse_args()
     return args
