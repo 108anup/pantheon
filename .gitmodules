@@ -54,3 +54,6 @@
 	path = third_party/fillp-sheep
 	url = https://github.com/fillthepipe/fillp-sheep.git
 	ignore = dirty
+[submodule "third_party/plot_config_light"]
+	path = third_party/plot_config_light
+	url = git@github.com:108anup/plot_config_light.git

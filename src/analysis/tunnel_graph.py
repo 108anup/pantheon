@@ -299,13 +299,21 @@ class TunnelGraph(object):
         return list(itertools.chain(*[items[i::ncol] for i in range(ncol)]))
 
     def my_plot_throughput_graph(self):
+        from plot_config_light import get_fig_size_acm_small, get_style
+
+        get_fig_size = get_fig_size_acm_small
+        style = get_style(use_markers=False, paper=True, use_tex=True)
+        del style['legend.title_fontsize']
+        plt.rcParams.update(style)
+
         empty_graph = True
-        fig, ax = plt.subplots()
+        figsize = get_fig_size(0.33, 0.33)
+        fig, ax = plt.subplots(figsize=figsize)
 
         if self.link_capacity:
             empty_graph = False
             ax.fill_between(self.link_capacity_t, 0, self.link_capacity,
-                            facecolor='linen', label="Link capacity %.2f Mbps" % self.avg_capacity)
+                            facecolor='linen')
 
         colors = ['b', 'g', 'r', 'y', 'c', 'm']
         color_i = 0
@@ -315,8 +323,8 @@ class TunnelGraph(object):
             if flow_id in self.egress_tput and flow_id in self.egress_t:
                 empty_graph = False
                 ax.plot(self.egress_t[flow_id], self.egress_tput[flow_id],
-                        label='Flow %s (%.2f Mbps)'
-                        % (flow_id, self.avg_egress.get(flow_id, 0)),
+                        label='%.2f'
+                        % (self.avg_egress.get(flow_id, 0)),
                         color=color)
 
             color_i += 1
@@ -328,10 +336,10 @@ class TunnelGraph(object):
             return
 
         ax.set_xlabel('Time (s)')
-        ax.set_ylabel('Throughput (Mbps)')
+        ax.set_ylabel('Tput (Mbps)')
 
-        ax.grid()
-        ax.legend()
+        ax.grid(True)
+        ax.legend(ncol=2)
         # handles, labels = ax.get_legend_handles_labels()
         # lgd = ax.legend(self.flip(handles, 2), self.flip(labels, 2),
         #                 scatterpoints=1, bbox_to_anchor=(0.5, -0.1),
