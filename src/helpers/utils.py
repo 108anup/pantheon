@@ -31,7 +31,8 @@ def make_sure_dir_exists(d):
             raise
 
 
-tmp_dir = path.join(context.base_dir, 'tmp')
+# tmp_dir = path.join(context.base_dir, 'tmp')
+tmp_dir = "/mnt/ramdisk/"
 make_sure_dir_exists(tmp_dir)
 
 

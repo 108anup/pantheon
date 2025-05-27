@@ -41,20 +41,29 @@
   RUNTIME=60
   INTERVAL=0
   SCHEMES="--all"
+  SCHEMES="--schemes=\"bbr vegas copa sprout ledbat pcc_experimental vivace pcc cubic indigo fillp fillp_sheep taova\""
   # SCHEMES="--schemes=\"bbr fillp fillp_sheep indigo vegas\""
-  SCHEMES="--schemes=\"bbr\""
+  # SCHEMES="--schemes=\"bbr\""
   bw_ppms=8
-  ow_delay_ms=5
+  ow_delay_ms=20
   buf_size_bdp=4
-  n_flows=1
+  n_flows=2
+
+  jobs=()
 
   # for bw_ppms in $(seq 1 8); do
-  #   run_experiment
+  #   run_experiment &
+  #   jobs+=($!)
   # done
 
-  bw_ppms=8
-  for n_flows in $(seq 2 8); do
-    run_experiment
+  for bw_ppms in 2 4 8; do
+    # The parallelization needs to incorporate flow count and BDP.
+    for n_flows in $(seq 2 6); do
+    # for n_flows in 7 8; do
+      run_experiment &
+      jobs+=($!)
+    done
+    wait "${jobs[@]}"
   done
 
   exit 0
