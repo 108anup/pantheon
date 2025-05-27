@@ -51,7 +51,7 @@ def main():
     exp_dirs = get_exp_dirs(args.data_dir)
     print("Analyzing: ", exp_dirs)
 
-    pool = ThreadPool(processes=multiprocessing.cpu_count()//16)
+    pool = ThreadPool(processes=multiprocessing.cpu_count()//4)
     for exp_dir in exp_dirs:
         pool.apply_async(work, (exp_dir, args))
     pool.close()

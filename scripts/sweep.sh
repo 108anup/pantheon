@@ -56,7 +56,8 @@
   #   jobs+=($!)
   # done
 
-  for bw_ppms in 2 4 8; do
+  # for bw_ppms in 2 4 8; do
+  for bw_ppms in 4; do
     # The parallelization needs to incorporate flow count and BDP.
     for n_flows in $(seq 2 6); do
     # for n_flows in 7 8; do

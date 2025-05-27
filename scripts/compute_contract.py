@@ -54,14 +54,14 @@ STATISTICS = {
     # "max_owd": Statistic("max_owd", "max delay", "Max delay (ms)"),
     "p50_owd": Statistic("p50_owd", "p50 delay", "p50 delay (ms)"),
     # "p90_owd": Statistic("p90_owd", "p90 delay", "p90 delay (ms)"),
-    # "p95_owd": Statistic("p95_owd", "p95 delay", "p95 delay (ms)"),
+    "p95_owd": Statistic("p95_owd", "p95 delay", "p95 delay (ms)"),
     "avg_owd": Statistic("avg_owd", "avg delay", "Avg delay (ms)"),
 
     # "end_max_owd": Statistic("end_max_owd", "max delay", "Max delay (ms)"),
-    # "end_p50_owd": Statistic("end_p50_owd", "p50 delay", "p50 delay (ms)"),
+    "end_p50_owd": Statistic("end_p50_owd", "p50 delay", "p50 delay (ms)"),
     # "end_p90_owd": Statistic("end_p90_owd", "p90 delay", "p90 delay (ms)"),
-    # "end_p95_owd": Statistic("end_p95_owd", "p95 delay", "p95 delay (ms)"),
-    # "end_avg_owd": Statistic("end_avg_owd", "avg delay", "Avg delay (ms)"),
+    "end_p95_owd": Statistic("end_p95_owd", "p95 delay", "p95 delay (ms)"),
+    "end_avg_owd": Statistic("end_avg_owd", "avg delay", "Avg delay (ms)"),
 
 }
 
