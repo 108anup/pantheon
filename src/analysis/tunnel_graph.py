@@ -12,8 +12,8 @@ import arg_parser
 from collections import defaultdict
 
 
-END = 10  # seconds
-SKIP_END = 10  # seconds
+END = 15  # seconds
+SKIP_END = 2  # seconds
 
 
 class TunnelGraph(object):
@@ -174,6 +174,8 @@ class TunnelGraph(object):
         self.percentile_delay = {}
         self.loss_rate = {}
 
+        self.end_avg_egress = {}
+
         self.min_owd = {}
         self.max_owd = {}
         self.p50_owd = {}
@@ -259,6 +261,15 @@ class TunnelGraph(object):
                     self.egress_tput[flow_id].append(
                         departures[flow_id].get(bin_id, 0) / us_per_bin)
                     self.egress_t[flow_id].append(self.bin_to_s(bin_id + 1))
+
+                this_egress_t = np.array(self.egress_t[flow_id])
+                this_tput = np.array(self.egress_tput[flow_id])
+                end_t = np.max(this_egress_t)
+                end_filter = this_egress_t <= end_t - SKIP_END
+                start_filter = this_egress_t >= end_t - SKIP_END - END
+                filtered_tput = this_tput[start_filter & end_filter]
+                end_avg_egress = np.mean(filtered_tput)
+                self.end_avg_egress[flow_id] = end_avg_egress
 
             # calculate 95th percentile per-packet one-way delay
             self.percentile_delay[flow_id] = None
@@ -520,6 +531,7 @@ class TunnelGraph(object):
                 flow_data[flow_id]['tput'] = self.avg_egress[flow_id]
                 flow_data[flow_id]['delay'] = self.percentile_delay[flow_id]
                 flow_data[flow_id]['loss'] = self.loss_rate[flow_id]
+                flow_data[flow_id]['end_tput'] = self.end_avg_egress[flow_id]
 
                 flow_data[flow_id]['min_owd'] = self.min_owd[flow_id]
                 flow_data[flow_id]['max_owd'] = self.max_owd[flow_id]

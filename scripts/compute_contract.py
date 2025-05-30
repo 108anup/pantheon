@@ -12,17 +12,19 @@ import numpy as np
 import pandas as pd
 import scipy.optimize
 
-# from plot_config_light import colors, get_fig_size_paper, get_fig_size_ppt, get_style
-# get_fig_size = get_fig_size_paper
-# style = get_style(use_markers=False, paper=True, use_tex=True)
+from plot_config_light import colors, get_fig_size_paper, get_fig_size_ppt, get_style, get_fig_size_acm_small
+get_fig_size = get_fig_size_acm_small
+style = get_style(use_markers=False, paper=True, use_tex=True)
 
-style = {
-    "pgf.texsystem": "pdflatex",
-    "text.usetex": True,
-    "pgf.preamble": "\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage{usenix}",
-    "text.latex.preamble": "\\usepackage[cm]{sfmath}\n\\usepackage{amsmath}\n\\usepackage[scale=0.8]{cascadia-code}",
-}
+# style = {
+#     "pgf.texsystem": "pdflatex",
+#     "text.usetex": True,
+#     "pgf.preamble": "\\usepackage[utf8]{inputenc}\n\\usepackage[T1]{fontenc}\n\\usepackage{usenix}",
+#     "text.latex.preamble": "\\usepackage[cm]{sfmath}\n\\usepackage{amsmath}\n\\usepackage[scale=0.8]{cascadia-code}",
+# }
 
+# USE_END_TPUT = True
+USE_END_TPUT = False
 
 FILE_PATH = os.path.abspath(os.path.realpath(__file__))  # PROJECT_ROOT/scripts/script.py
 SCRIPTS_ROOT = os.path.dirname(FILE_PATH)  # PROJECT_ROOT/scripts/
@@ -104,9 +106,15 @@ def contract_no_shifty(x, shape, scale, shiftx):
     return scale / np.power(x - shiftx, shape)
 
 
+def contract_linear(x, shape, shiftx):
+    return shape * (shiftx - x)
+
+
 def compute_contract(df: pd.DataFrame, statistic: Statistic):
     cca = df["cca"].iloc[0]
     tput = df["tput"]
+    if USE_END_TPUT:
+        tput = df["end_tput"]
     sdata = df[statistic.name]
     short_lbl = statistic.short_label
     if "owd" in statistic.name:
@@ -117,7 +125,8 @@ def compute_contract(df: pd.DataFrame, statistic: Statistic):
     sdata = np.array(sdata)
 
     fits = []
-    for func in [contract_general, contract_no_shift, contract_no_shifty]:
+    # for i, func in enumerate([contract_general, contract_no_shift, contract_no_shifty, contract_linear]):
+    for i, func in enumerate([contract_general, contract_no_shift, contract_no_shifty]):
         try:
             ret = scipy.optimize.curve_fit(func, sdata, tput, maxfev=10000)
             shape = ret[0][0]
@@ -125,15 +134,21 @@ def compute_contract(df: pd.DataFrame, statistic: Statistic):
             shape_var = ret[1][0][0]
             shape_dev = np.sqrt(shape_var)
             # label = f"Fit $\\left(\\texttt{{rate}} \\propto \\frac{{1}}{{\\texttt{{{short_lbl}}}^{{{shape:.6f} \\pm {shape_dev:.6f}}}}}\\right)$"
-            label = f"Fit $\\left(\\texttt{{rate}} \\propto \\frac{{1}}{{\\texttt{{{short_lbl}}}^{{{shape:.6f}}}}}\\right)$"
+            label = f"Fit $\\left(\\texttt{{rate}} \\propto \\frac{{1}}{{\\texttt{{{short_lbl}}}^{{{shape:.2f}}}}}\\right)$"
             if len(ret[0]) > 2:
-                label = f"Fit $\\left(\\texttt{{rate}} \\propto \\frac{{1}}{{(\\texttt{{{short_lbl}}} - {shiftx:.2f})^{{{shape:.6f}}}}}\\right)$"
+                label = f"Fit $\\left(\\texttt{{rate}} \\propto \\frac{{1}}{{(\\texttt{{{short_lbl}}} - {shiftx:.2f})^{{{shape:.2f}}}}}\\right)$"
                 # label = f"Fit $\\left(\\texttt{{rate}} \\propto \\frac{{1}}{{(\\texttt{{{short_lbl}}} - {shiftx:.2f})^{{{shape:.6f} \\pm {shape_dev:.6f}}}}}\\right)$"
             contract = Contract(label, ret[0], func, shape_var, ret[1])
+            if i == 3:
+                shiftx = ret[0][1]
+                label = f"Fit $\\left(\\texttt{{rate}} \\propto {{{shiftx:.2f} - \\texttt{{{short_lbl}}}}}\\right)$"
+                contract = Contract(label, ret[0], func, shape_var, ret[1])
             fits.append(contract)
         except RuntimeError:
+            # import ipdb; ipdb.set_trace()
             pass
         except ValueError:
+            # import ipdb; ipdb.set_trace()
             pass
 
     # Pick fit with the lowest shape variance
@@ -180,6 +195,8 @@ def compute_contract(df: pd.DataFrame, statistic: Statistic):
 def plot_contract(df: pd.DataFrame, outdir: str, statistic: Statistic, contract: Optional[Contract] = None):
     cca = df["cca"].iloc[0]
     tput = df["tput"]
+    if USE_END_TPUT:
+        tput = df["end_tput"]
     sdata = df[statistic.name]
     if "owd" in statistic.name:
         sdata = sdata - df["min_owd"]
@@ -187,14 +204,15 @@ def plot_contract(df: pd.DataFrame, outdir: str, statistic: Statistic, contract:
     # figsize = get_fig_size_paper(0.49, 0.49)
     # figsize = (2.54, 1.49)
     # fig, ax = plt.subplots(figsize=figsize)
-    fig, ax = plt.subplots()
+    figsize = get_fig_size(0.32, 0.4)
+    fig, ax = plt.subplots(figsize=figsize)
 
     ax.scatter(
         sdata,
         tput,
         marker='X',
         label="Data",
-        # color=colors[2]
+        color=colors[2]
     )
 
     if contract:
@@ -205,7 +223,7 @@ def plot_contract(df: pd.DataFrame, outdir: str, statistic: Statistic, contract:
     ax.set_xlabel(statistic.xlabel)
     ax.set_ylabel("Rate (Mbps)")
     ax.legend()
-    ax.grid()
+    ax.grid(True)
 
     fig.tight_layout(pad=0.05)
     thisdir = os.path.join(outdir, cca)
@@ -327,6 +345,8 @@ def create_df(input_dir, exts=(".log")):
                 for flow, flow_dict in run_dict.items():
                     exp_params = parse_exp_raw(os.path.basename(exp_dir))
                     # if flow == "all" or exp_params["n_flows"] == 1:
+                    if exp_params["bw_ppms"] != 8: # in [1, 2, 3, 5, 6, 7]:
+                        continue
                     if flow == "all":
                         continue
                     record = {
